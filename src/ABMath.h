@@ -433,8 +433,8 @@ public:
         std::vector<vec3> vVec;
         std::unordered_map<vec3, size_t, hash_vec3> map;
         for (size_t i = 0; i < pIndex; ++i) {
-            if (map.find(p[i].nor) == map.cend()) {
-                map.insert(std::make_pair(p[i].nor, i));
+            if (map.find(p[i].pos) == map.cend()) {
+                map.insert(std::make_pair(p[i].pos, i));
             }
         }
         size_t iv = pIndex;
