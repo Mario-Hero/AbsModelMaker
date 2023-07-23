@@ -41,6 +41,9 @@ struct Face {  // 4边面，若Face[2]==Face[3],则为3边面
     std::array<int, 4> p;
     vec3 nor = NO_NORMAL;
     Face(const std::array<int, 4> arr = std::array<int, 4>(), const vec3 normal = NO_NORMAL) : p(arr), nor(normal) {}
+    bool operator==(const Face& other) {
+        return p == other.p;
+    }
 };
 using TriFace = std::array<int, 3>;  // 3边面
 using Trail = std::vector<vec3>;     // 空间轨迹
@@ -315,17 +318,22 @@ public:
         f = mo.f;
         name = mo.name;
     }
-    // lock the mutex of this model. Remember to unlock
+    // 锁住模型 lock the mutex of this model. Remember to unlock
     Model& lock() {
         mtx.lock();
         return *this;
     }
+    // 解锁模型
     Model& unlock() {
         mtx.unlock();
         return *this;
     }
-    Model& reCalNormalByPoint()  // 重新计算当前模型的法线，逐点平均
-    {
+    Model& clear() {
+        p.clear();
+        f.clear();
+    }
+    // 重新计算当前模型的法线，逐点平均
+    Model& reCalNormalByPoint() {
         for (const auto& fii : f) {
             const auto& fi = fii.p;
             if (fi[2] == fi[3]) {
@@ -344,8 +352,8 @@ public:
         }
         return *this;
     }
-    Model& reCalNormalByFace()  // 重新计算当前模型的法线，逐面计算
-    {
+    // 重新计算当前模型的法线，逐面计算
+    Model& reCalNormalByFace() {
         for (auto& fi : f) {
             const int a = fi.p[0];
             const int m = fi.p[1];
@@ -356,6 +364,7 @@ public:
         }
         return *this;
     }
+    // 输出模型的点和三角面数量
     Model& showModelInfo() {
         unsigned int triangleFaceNum = 0;
         for (const auto& fi : f) {
@@ -367,7 +376,6 @@ public:
         std::cout << std::endl;
         return *this;
     }
-
     // 根据面的情况计算法线
     Model& refine() {
         if (p.empty() || f.empty())
@@ -459,9 +467,48 @@ public:
         }
         return *this;
     }
-
+    // 删除重复点
+    Model& deleteDuplicatePoints() {
+        std::unordered_map<vec3, size_t, hash_vec3> map;
+        std::vector<size_t> minus(p.size(), 0);
+        size_t delNum = 0;
+        size_t i = 0;
+        size_t j = 0;
+        while (i < p.size()) {
+            const auto it = map.find(p[i].pos);
+            if (it == map.cend()) {
+                map.insert(std::make_pair(p[i].pos, i));
+                minus[j] = delNum;
+                ++i;
+            } else {
+                ++delNum;
+                minus[j] = j - it->second;
+                p.erase(p.begin() + i);
+            }
+            ++j;
+        }
+        for (auto& fv : f) {
+            for (auto& fvp : fv.p) {
+                fvp -= minus[fvp];
+            }
+        }
+        return *this;
+    }
+    // 删除重复面
+    Model& deleteDuplicateFaces() {
+        size_t i = 1;
+        while (i < f.size()) {
+            auto endIt = f.begin() + i;
+            const auto it = std::find(f.begin(), endIt, f[i]);
+            if (it != endIt)
+                f.erase(endIt);
+            else
+                ++i;
+        }
+        return *this;
+    }
     // 沿曲线挤出图形
-    Model& extrude(std::function<vec3(const float)> line, const std::vector<vec2>& pVec, const float tStart, const float tEnd, const float tStep, const vec3& Color = DEFAULT_COLOR) {
+    Model& extrude(std::function<vec3(const float)> line, const std::vector<vec2>& pVec, const float tStart, const float tEnd, const float tDelta, const vec3& Color = DEFAULT_COLOR) {
         const int pvStartIndex = p.size();
         const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
         const vec3 startPoint = line(tStart);
@@ -476,8 +523,8 @@ public:
             addTriFace(tri);
         }
         int ik = 1;
-        float i = tStart + tStep;
-        for (; (i < tEnd && tStart < tEnd) || (i > tEnd && tStart > tEnd); i += tStep) {
+        float i = tStart + tDelta;
+        for (; (i < tEnd && tStart < tEnd) || (i > tEnd && tStart > tEnd); i += tDelta) {
             const vec3 nowPoint = line(i);
             const mat4 tran = aLookAt(nowPoint, direction(line, i, tStart < tEnd), upVector);  // 获取旋转矩阵
             upVector = vec3(tran[1]);
@@ -777,6 +824,7 @@ public:
         return *this;
     }
 };
+
 class World {
 public:
     std::vector<Model> m;
@@ -804,6 +852,11 @@ public:
     }
     void copyModel(const Model mi) {
         m.emplace_back(mi);
+    }
+    void showWorldInfo() {
+        for (auto& mo : m) {
+            mo.showModelInfo();
+        }
     }
     void saveWorld2Obj(const std::string savePath) const {
         std::ofstream objOut(savePath, std::ios::ate);
