@@ -64,8 +64,8 @@ void demo3(Model& m) {
 void demo4(Model& m) {
     const vec3 grey = vec3(0.5, 0.5, 0.5);
     const auto cirVec = circle(0.07, 10);
-    const int ballSliceA = 10;
-    const int ballSliceB = 8;
+    const size_t ballSliceA = 10;
+    const size_t ballSliceB = 8;
     const int L = 7;
     const float r = 1;
     const float ballR = 0.2;

@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <fstream>
 #include <functional>
@@ -22,35 +23,34 @@ constexpr vec3 WORLD_UP = WORLD_Y;
 constexpr vec3 WORLD_ORIGIN = vec3(0, 0, 0);
 constexpr vec3 NO_NORMAL = vec3(0, 0, 0);
 constexpr vec3 DEFAULT_COLOR = vec3(1, 1, 1);
-constexpr std::array<vec3, 6> WORLD_DIRECTION_ARRAY = {vec3(0, 0, 1), vec3(0, 0, -1), vec3(0, 1, 0), vec3(0, -1, 0), vec3(1, 0, 0), vec3(-1, 0, 0)};
-constexpr double AB_PI = 3.141592653;
+constexpr double AB_PI = 3.14159265358979323846;
 const std::string MODEL_NAME = "model";
 const std::string WORLD_NAME = "world";
 using PARAM_INPUT = vec3;  // {start, end, delta}
 
 struct Point {
-    vec3 pos;  // 位置
-    vec3 nor;  // 法线Normal, don't need to normalize
-    vec3 col;  // Color
+    vec3 pos;  // 位置 Position
+    vec3 nor;  // 法线 Normal, don't need to normalize
+    vec3 col;  // 顶点色 Vertex Color
     std::vector<float> sequence(const vec3& normal = NO_NORMAL) const {
         return normal == NO_NORMAL ? std::vector<float>({pos[0], pos[1], pos[2], nor[0], nor[1], nor[2], col[0], col[1], col[2]}) : std::vector<float>({pos[0], pos[1], pos[2], normal[0], normal[1], normal[2], col[0], col[1], col[2]});
     }
 };
 
 struct Face {  // 4边面，若Face[2]==Face[3],则为3边面
-    std::array<int, 4> p;
+    std::array<size_t, 4> p;
     vec3 nor = NO_NORMAL;
-    Face(const std::array<int, 4> arr = std::array<int, 4>(), const vec3 normal = NO_NORMAL) : p(arr), nor(normal) {}
-    bool operator==(const Face& other) {
+    Face(const std::array<size_t, 4> arr = std::array<size_t, 4>(), const vec3 normal = NO_NORMAL) : p(arr), nor(normal) {}
+    bool operator==(const Face& other) const{
         return p == other.p;
     }
 };
-using TriFace = std::array<int, 3>;  // 3边面
-using Trail = std::vector<vec3>;     // 空间轨迹
-using FaceVec = std::vector<vec3>;   // 带有点坐标的面
+using TriFace = std::array<size_t, 3>;  // 3边面
+using Trail = std::vector<vec3>;        // 空间轨迹
+using FaceVec = std::vector<vec3>;      // 带有点坐标的面
 
 struct hash_vec3 {
-    size_t operator()(const vec3& p) const {  // 别忘记const
+    size_t operator()(const vec3& p) const {
         return std::hash<float>()(p[0]) + std::hash<float>()(p[1]) + std::hash<float>()(p[2]);
     }
 };
@@ -69,12 +69,12 @@ inline float smoothStep(const float input, const float xa, const float ya, const
     const float f = t * t * (3 - 2 * t);
     return f * (yb - ya) + ya;
 }
-inline void outputVec3(const vec3 aPos) {
+inline void outputVec3(const vec3& aPos) {
     std::cout << "Vec3" << std::endl;
     std::cout << aPos[0] << " " << aPos[1] << " " << aPos[2] << std::endl;
     std::cout << std::endl;
 }
-inline void outputMat4(const mat4 m) {
+inline void outputMat4(const mat4& m) {
     std::cout << "Matrix4x4" << std::endl;
     std::cout << m[0][0] << " " << m[1][0] << " " << m[2][0] << " " << m[3][0] << std::endl;
     std::cout << m[0][1] << " " << m[1][1] << " " << m[2][1] << " " << m[3][1] << std::endl;
@@ -98,10 +98,10 @@ inline vec3 direction(std::function<vec3(const float)> line, const float x, cons
     return glm::normalize(GO_UP ? (b - a) : (a - b));
 }
 // 返回平面正多边形，可提高cut值模拟圆形
-inline std::vector<vec2> circle(const float r, const int cut) {
+inline std::vector<vec2> circle(const float r, const size_t cut) {
     std::vector<vec2> t;
     const double phi = 2 * AB_PI / float(cut);
-    for (int i = 0; i < cut; ++i) {  // 至少3cut
+    for (size_t i = 0; i < cut; ++i) {  // 至少3cut
         t.emplace_back(r * cos(i * phi), r * sin(i * phi));
     }
     return t;
@@ -127,7 +127,7 @@ inline std::pair<double, double> doublePendulum(const double Theta1, const doubl
     return std::make_pair(alpha1, alpha2);
 }
 // 曼德尔球
-inline bool mandelbulb(const double c_x, const double c_y, const double c_z, const double power = 8, const int MAX_ITERATIONS = 10, const double BALLOUT = 2.0) {
+inline bool mandelbulb(const double c_x, const double c_y, const double c_z, const double power = 8, const size_t MAX_ITERATIONS = 10, const double BALLOUT = 2.0) {
     vec3 z = vec3(c_x, c_y, c_z);
     double r = 0.0;
     for (size_t i = 0; i < MAX_ITERATIONS; ++i) {
@@ -162,7 +162,7 @@ inline std::vector<FaceVec> kochi3d(const FaceVec& fv) {
     return t;
 }
 // 三角化二维图形，返回由点的索引构成的三边面数组。使用非常简单的隔点连线的方法，仅保证正确渲染，不保证布线质量。
-inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int indexStart = 0) {
+inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const size_t indexStart = 0) {
     if (pv.size() <= 2)
         return std::vector<TriFace>();
     if (pv.size() == 3) {
@@ -171,41 +171,39 @@ inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int i
         temp.emplace_back(tf);
         return temp;
     }
+    const size_t m = pv.size();
     std::vector<TriFace> out;
-    std::vector<bool> sel;
-    std::vector<float> convex;
-    const int m = pv.size();
-    sel.resize(m, false);
-    convex.resize(m, 0);  //>0 凸 <0 凹 =0 共线
+    std::vector<bool> sel(m, false);
+    std::vector<float> convex(m, 0); //>0 凸 <0 凹 =0 共线
 
-    auto calConvex = [&](const int i) -> float {
+    auto calConvex = [&](const size_t i) -> float {
         const vec2 a = pv[i] - pv[(i + pv.size() - 1) % pv.size()];
         const vec2 b = pv[(i + 1) % pv.size()] - pv[i];
         return cross2d(a, b);
     };
 
-    for (int i = 0; i < m; ++i) {
+    for (size_t i = 0; i < m; ++i) {
         convex[i] = calConvex(i);
     }
 
-    auto calConvexWithSel = [&](const int i) -> float {
-        int j = (i + 1) % pv.size();
-        int k = (i - 1) % pv.size();
+    auto calConvexWithSel = [&pv,&sel](const size_t i) -> float {
+        size_t j = (i + 1) % pv.size();
+        size_t k = (i + pv.size() - 1) % pv.size();
         while (sel[j]) {
             j = (j + 1) % pv.size();
         }
         while (sel[k]) {
-            k = (k - 1) % pv.size();
+            k = (k + pv.size() - 1) % pv.size();
         }
         const vec2 a = pv[i] - pv[k];
         const vec2 b = pv[j] - pv[i];
         return cross2d(a, b);
     };
 
-    auto tryConnect = [&](const int ii) {
-        int p = 0;
-        int j = (ii + 1) % m;
-        int j2 = 0;
+    auto tryConnect = [&](const size_t ii) {
+        size_t p = 0;
+        size_t j = (ii + 1) % m;
+        size_t j2 = 0;
         while (p < 2) {
             while (sel[j]) {
                 j = (j + 1) % m;
@@ -223,13 +221,13 @@ inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int i
         convex[j] = calConvexWithSel(j);
     };
 
-    for (int i = 0; i < m; ++i) {
+    for (size_t i = 0; i < m; ++i) {
         if (convex[i] == 0) {
             sel[i] = true;
         }
     }
     bool allConvex = true;
-    int i = 0;
+    size_t i = 0;
     while (i < m) {
         while (sel[i]) {
             ++i;
@@ -252,7 +250,7 @@ inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int i
         }
     }
     i = 0;
-    int selNum = 0;
+    size_t selNum = 0;
     while (i < m) {
         while (sel[i] || convex[i] == 0) {
             ++selNum;
@@ -262,7 +260,7 @@ inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int i
             }
         }
         if (i == m) {
-            if (pv.size() - selNum < 3) {
+            if (pv.size() < 3 + selNum) {
                 break;
             } else {
                 i = 0;
@@ -279,7 +277,7 @@ inline std::vector<TriFace> triangulate(const std::vector<vec2>& pv, const int i
 class Model {
 private:
     std::mutex mtx;
-    void calMiddleNormal(const int a, const int m, const int b)  // 点的顺序为 a->m->b
+    void calMiddleNormal(const size_t a, const size_t m, const size_t b)  // 点的顺序为 a->m->b
     {
         const vec3 va = p[a].pos - p[m].pos;
         const vec3 vb = p[b].pos - p[m].pos;
@@ -294,17 +292,17 @@ private:
     void addFace(const Face& ftemp) {
         f.emplace_back(ftemp);
     }
-    void addFace(const int a, const int b, const int c, const int d, const vec3& normal = NO_NORMAL) {
+    void addFace(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
         f.emplace_back(Face({a, b, c, d}, normal));
     }
-    void addFaceInvert(const int a, const int b, const int c, const int d, const vec3& normal = NO_NORMAL) {
+    void addFaceInvert(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
         f.emplace_back(Face({d, c, b, a}, normal));
     }
 
     void addTriFace(const TriFace& ftemp) {
         f.emplace_back(Face({ftemp[0], ftemp[1], ftemp[2], ftemp[2]}));
     }
-    void addTriFace(const int a, const int b, const int c) {
+    void addTriFace(const size_t a, const size_t b, const size_t c) {
         f.emplace_back(Face({a, b, c, c}));
     }
 
@@ -331,6 +329,7 @@ public:
     Model& clear() {
         p.clear();
         f.clear();
+        return *this;
     }
     // 重新计算当前模型的法线，逐点平均
     Model& reCalNormalByPoint() {
@@ -355,9 +354,9 @@ public:
     // 重新计算当前模型的法线，逐面计算
     Model& reCalNormalByFace() {
         for (auto& fi : f) {
-            const int a = fi.p[0];
-            const int m = fi.p[1];
-            const int b = fi.p[2];
+            const size_t a = fi.p[0];
+            const size_t m = fi.p[1];
+            const size_t b = fi.p[2];
             const vec3 va = p[a].pos - p[m].pos;
             const vec3 vb = p[b].pos - p[m].pos;
             fi.nor = glm::normalize(glm::cross(vb, va));
@@ -366,7 +365,7 @@ public:
     }
     // 输出模型的点和三角面数量
     Model& showModelInfo() {
-        unsigned int triangleFaceNum = 0;
+        unsigned long triangleFaceNum = 0;
         for (const auto& fi : f) {
             triangleFaceNum += fi.p[2] == fi.p[3] ? 1 : 2;
         }
@@ -389,6 +388,7 @@ public:
         }
         return *this;
     }
+    // 保存到obj文件
     Model& save2Obj(std::string savePath) {
         std::ofstream objOut(savePath, std::ios::ate);
         if (!objOut.is_open()) {
@@ -405,7 +405,7 @@ public:
             objOut << "vn " << f.nor[0] << " " << f.nor[1] << " " << f.nor[2] << "\n";
         }
         // 带法向量的面
-        for (int i = 0; i < f.size(); ++i) {
+        for (size_t i = 0; i < f.size(); ++i) {
             const auto& fa = f[i];
             const auto& fi = fa.p;
             const auto& fn = fa.nor;
@@ -422,7 +422,7 @@ public:
         std::vector<FaceVec> fv;
         for (const Face& fa : f) {
             FaceVec temp;
-            for (const int fap : fa.p) {
+            for (const size_t fap : fa.p) {
                 if (fap >= p.size()) {
                     throw("face2FaceVec():fap bigger than p");
                 }
@@ -434,7 +434,6 @@ public:
         }
         return fv;
     }
-
     // faceVec转换成Face并储存
     Model& faceVec2Face(const std::vector<FaceVec>& fv) {
         const size_t pIndex = p.size();
@@ -448,7 +447,7 @@ public:
         size_t iv = pIndex;
         for (const auto& fa : fv) {
             Face temp;
-            for (int i = 0; i < fa.size() && i < 4; ++i) {
+            for (size_t i = 0; i < fa.size() && i < 4; ++i) {
                 const vec3& fav = fa[i];
                 auto it = map.find(fav);
                 if (it == map.cend()) {
@@ -509,12 +508,12 @@ public:
     }
     // 沿曲线挤出图形
     Model& extrude(std::function<vec3(const float)> line, const std::vector<vec2>& pVec, const float tStart, const float tEnd, const float tDelta, const vec3& Color = DEFAULT_COLOR) {
-        const int pvStartIndex = p.size();
+        const size_t pvStartIndex = p.size();
         const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
         const vec3 startPoint = line(tStart);
         const mat4 tranStart = aLookAt(startPoint, direction(line, tStart, tStart < tEnd), WORLD_UP);  // 获取旋转矩阵
         vec3 upVector = vec3(tranStart[1]);
-        const int m = pVec.size();
+        const size_t m = pVec.size();
         for (const auto& pvec2 : pVec) {
             const vec4 tempVec4 = tranStart * vec4(pvec2, 0, 1);
             addPoint(vec3(tempVec4), NO_NORMAL, Color);
@@ -522,20 +521,20 @@ public:
         for (const auto& tri : tr) {
             addTriFace(tri);
         }
-        int ik = 1;
+        size_t ik = 1;
         float i = tStart + tDelta;
         for (; (i < tEnd && tStart < tEnd) || (i > tEnd && tStart > tEnd); i += tDelta) {
             const vec3 nowPoint = line(i);
             const mat4 tran = aLookAt(nowPoint, direction(line, i, tStart < tEnd), upVector);  // 获取旋转矩阵
             upVector = vec3(tran[1]);
-            for (int j = 0; j < int(pVec.size()); ++j) {
+            for (size_t j = 0; j < pVec.size(); ++j) {
                 const vec4 np = tran * vec4(pVec[j], 0, 1);
                 addPoint(vec3(np), NO_NORMAL, Color);
                 addFace(pvStartIndex + ik * m + j, pvStartIndex + ik * m + (j + 1) % m, pvStartIndex + ik * m + (j + 1) % m - m, pvStartIndex + ik * m + j - m);
             }
             ++ik;
         }
-        const int deltaM = (ik - 1) * m;
+        const size_t deltaM = (ik - 1) * m;
         for (const auto& tri : tr) {
             addTriFace(tri[0] + deltaM, tri[2] + deltaM, tri[1] + deltaM);
         }
@@ -544,7 +543,7 @@ public:
 
     // 根据曲线的导数和起点挤出图形
     Model& extrudeDFun(std::function<vec3(vec3)> dLine, const std::vector<vec2>& pVec, const vec3& initialPoint, const float delta, const float length, const vec3& Color = DEFAULT_COLOR) {
-        const int pvStartIndex = p.size();
+        const size_t pvStartIndex = p.size();
         const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
         const mat4 tranStart = aLookAt(initialPoint, glm::normalize(dLine(initialPoint)), WORLD_UP);  // 获取旋转矩阵
         /*
@@ -553,7 +552,7 @@ public:
         const vec3 UP = vec3(0, 1, 0);
         */
         vec3 upVector = vec3(tranStart[1]);
-        const int m = pVec.size();
+        const size_t m = pVec.size();
         for (const auto& pvec2 : pVec) {
             const vec4 tempVec4 = tranStart * vec4(pvec2, 0, 1);
             addPoint(vec3(tempVec4), NO_NORMAL, Color);
@@ -561,7 +560,7 @@ public:
         for (const auto& tri : tr) {
             addTriFace(tri);
         }
-        int ik = 1;
+        size_t ik = 1;
         float i = delta;
         vec3 v = initialPoint;
         for (; i < length; i += delta) {
@@ -570,21 +569,22 @@ public:
             const mat4 tran = aLookAt(v, dir3, upVector);  // 获取旋转矩阵
             upVector = vec3(tran[1]);
             v += dir3 * delta;
-            for (int j = 0; j < int(pVec.size()); ++j) {
+            for (size_t j = 0; j < pVec.size(); ++j) {
                 const vec4 np = tran * vec4(pVec[j], 0, 1);
                 addPoint(vec3(np), NO_NORMAL, Color);
                 addFace(pvStartIndex + ik * m + j, pvStartIndex + ik * m + (j + 1) % m, pvStartIndex + ik * m + (j + 1) % m - m, pvStartIndex + ik * m + j - m);
             }
             ++ik;
         }
-        const int deltaM = (ik - 1) * m;
+        const size_t deltaM = (ik - 1) * m;
         for (const auto& tri : tr) {
             addTriFace(tri[0] + deltaM, tri[2] + deltaM, tri[1] + deltaM);
         }
         return *this;
     }
+    // 绘制平面
     Model& plane(const vec3& pos = WORLD_ORIGIN, const vec3& axisX = vec3(1, 0, 0), const vec3& axisZ = vec3(0, 0, 1), const float xLen = 1, const float zLen = 1, const size_t divX = 5, const size_t divZ = 5) {
-        const int pvStartIndex = p.size();
+        const size_t pvStartIndex = p.size();
         const float zDelta = zLen / float(divZ);
         const float xDelta = xLen / float(divX);
         const vec3 upVector = glm::normalize(glm::cross(axisZ, axisX));
@@ -595,7 +595,7 @@ public:
         }
         for (size_t i = 0; i < divX - 1; ++i) {
             for (size_t j = 0; j < divZ - 1; ++j) {
-                const int loc = pvStartIndex + i * divZ + j;
+                const size_t loc = pvStartIndex + i * divZ + j;
                 addFace(loc, loc + 1, loc + 1 + divZ, loc + divZ, upVector);
             }
         }
@@ -603,12 +603,12 @@ public:
     }
     // 绘制柱体
     Model& bar(const std::vector<vec2>& pVec, const vec3& startPoint, const vec3& endPoint, const vec3& Color) {
-        const int pvStartIndex = p.size();
+        const size_t pvStartIndex = p.size();
         const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
         const vec3 dir = glm::normalize(endPoint - startPoint);
         const mat4 tranStart = aLookAt(startPoint, dir, WORLD_UP);  // 获取旋转矩阵
         vec3 upVector = vec3(tranStart[1]);
-        const int m = pVec.size();
+        const size_t m = pVec.size();
         for (const auto& pvec2 : pVec) {
             const vec4 tempVec4 = tranStart * vec4(pvec2, 0, 1);
             addPoint(vec3(tempVec4), NO_NORMAL, Color);
@@ -618,7 +618,7 @@ public:
         }
         const mat4 tran = aLookAt(endPoint, dir, upVector);  // 获取旋转矩阵
         // upVector = vec3(tran[1]);
-        for (int j = 0; j < pVec.size(); ++j) {
+        for (size_t j = 0; j < pVec.size(); ++j) {
             const vec4 np = tran * vec4(pVec[j], 0, 1);
             addPoint(vec3(np), NO_NORMAL, Color);
             addFace(pvStartIndex + m + j, pvStartIndex + m + (j + 1) % m, pvStartIndex + (j + 1) % m, pvStartIndex + j);
@@ -628,6 +628,7 @@ public:
         }
         return *this;
     }
+
     Model& plotWithDFun(std::function<vec3(vec3)> dLine, const vec3& initialLoc, const float delta, const float maxLength) {
         vec3 v = initialLoc;
         double t = 0.0;
@@ -646,7 +647,7 @@ public:
         const vec3 dir = glm::normalize(endPoint - startPoint);
         const mat4 tranStart = aLookAt(startPoint, dir, WORLD_UP);  // 获取旋转矩阵
         vec3 upVector = vec3(tranStart[1]);
-        const int m = pVec.size();
+        const size_t m = pVec.size();
         for (const auto& pvec2 : pVec) {
             const vec4 tempVec4 = tranStart * vec4(pvec2, 0, 1);
             addPoint(vec3(tempVec4), NO_NORMAL, Color1);
@@ -654,16 +655,16 @@ public:
         for (const auto& tri : tr) {
             addTriFace(tri);
         }
-        int ik = 1;
+        size_t ik = 1;
         const mat4 tran1 = aLookAt(0.495f * (endPoint - startPoint) + startPoint, dir, upVector);  // 获取旋转矩阵
-        for (int j = 0; j < pVec.size(); ++j) {
+        for (size_t j = 0; j < pVec.size(); ++j) {
             const vec4 np = tran1 * vec4(pVec[j], 0, 1);
             addPoint(vec3(np), NO_NORMAL, Color1);
             addFace(pvStartIndex + ik * m + j, pvStartIndex + ik * m + (j + 1) % m, pvStartIndex + ik * m + (j + 1) % m - m, pvStartIndex + ik * m + j - m);
         }
         ++ik;
         const mat4 tran2 = aLookAt(0.505f * (endPoint - startPoint) + startPoint, dir, upVector);  // 获取旋转矩阵
-        for (int j = 0; j < pVec.size(); ++j) {
+        for (size_t j = 0; j < pVec.size(); ++j) {
             const vec4 np = tran2 * vec4(pVec[j], 0, 1);
             addPoint(vec3(np), NO_NORMAL, Color2);
             addFace(pvStartIndex + ik * m + j, pvStartIndex + ik * m + (j + 1) % m, pvStartIndex + ik * m + (j + 1) % m - m, pvStartIndex + ik * m + j - m);
@@ -671,7 +672,7 @@ public:
         ++ik;
         const mat4 tran = aLookAt(endPoint, dir, upVector);  // 获取旋转矩阵
         // upVector = vec3(tran[1]);
-        for (int j = 0; j < pVec.size(); ++j) {
+        for (size_t j = 0; j < pVec.size(); ++j) {
             const vec4 np = tran * vec4(pVec[j], 0, 1);
             addPoint(vec3(np), NO_NORMAL, Color2);
             addFace(pvStartIndex + ik * m + j, pvStartIndex + ik * m + (j + 1) % m, pvStartIndex + ik * m + (j + 1) % m - m, pvStartIndex + ik * m + j - m);
@@ -682,15 +683,15 @@ public:
         return *this;
     }
     // 绘制UV球
-    Model& makeUVSphere(const vec3 pos = WORLD_ORIGIN, const float R = 1, const int n_slices = 12, const int n_stacks = 8, const vec3& Color = DEFAULT_COLOR) {
-        const int s = p.size();
+    Model& makeUVSphere(const vec3 pos = WORLD_ORIGIN, const float R = 1, const size_t n_slices = 12, const size_t n_stacks = 8, const vec3& Color = DEFAULT_COLOR) {
+        const size_t s = p.size();
         // add top vertex
         const vec3 v0 = vec3(0, R, 0) + pos;
         addPoint(v0, vec3(0, 1, 0), Color);
         // generate vertices per stack / slice
-        for (int i = 0; i < n_stacks - 1; ++i) {
+        for (size_t i = 0; i < n_stacks - 1; ++i) {
             const double phi = AB_PI * double(i + 1) / double(n_stacks);  // stack 从下往上，不包括两个极点
-            for (int j = 0; j < n_slices; ++j) {
+            for (size_t j = 0; j < n_slices; ++j) {
                 const double theta = 2.0 * AB_PI * double(j) / double(n_slices);
                 const float x = std::sin(phi) * std::cos(theta);
                 const float y = std::cos(phi);
@@ -700,10 +701,10 @@ public:
         }
         // add bottom vertex
         const vec3 v1 = vec3(0, -R, 0) + pos;
-        const int s2 = p.size();
+        const size_t s2 = p.size();
         addPoint(v1, vec3(0, -1, 0), Color);
         // add top / bottom triangles
-        for (int i = 0; i < n_slices; ++i) {
+        for (size_t i = 0; i < n_slices; ++i) {
             auto i0 = i + 1;
             auto i1 = (i + 1) % n_slices + 1;
             addTriFace(s, s + i1, s + i0);
@@ -713,14 +714,14 @@ public:
         }
 
         // add quads per stack / slice
-        for (int j = 0; j < n_stacks - 2; j++) {
-            const int j0 = j * n_slices + 1;
-            const int j1 = (j + 1) * n_slices + 1;
-            for (int i = 0; i < n_slices; i++) {
-                const int i0 = j0 + i;
-                const int i1 = j0 + (i + 1) % n_slices;
-                const int i2 = j1 + (i + 1) % n_slices;
-                const int i3 = j1 + i;
+        for (size_t j = 0; j < n_stacks - 2; j++) {
+            const size_t j0 = j * n_slices + 1;
+            const size_t j1 = (j + 1) * n_slices + 1;
+            for (size_t i = 0; i < n_slices; i++) {
+                const size_t i0 = j0 + i;
+                const size_t i1 = j0 + (i + 1) % n_slices;
+                const size_t i2 = j1 + (i + 1) % n_slices;
+                const size_t i3 = j1 + i;
                 addFace(s + i0, s + i1, s + i2, s + i3);
             }
         }
@@ -729,7 +730,7 @@ public:
     // 绘制立方体
     Model& makeCube(const vec3 pos = WORLD_ORIGIN, const float len = 1, const vec3& Color = DEFAULT_COLOR) {
         const float r = len / 2.f;
-        const int s = p.size();
+        const size_t s = p.size();
         // 正面4个点，右上角开始，逆时针旋转
         addPoint(pos + vec3(r, r, r), NO_NORMAL, Color);
         addPoint(pos + vec3(-r, r, r), NO_NORMAL, Color);
@@ -776,8 +777,8 @@ public:
                 }
                 ++vi;
             }
-            return *this;
         }
+        return *this;
     }
 
     Model& makeHyperbolicHelicoid(const vec3 pos = WORLD_ORIGIN, const PARAM_INPUT uparam = vec3(-1, 1, 0.05), const PARAM_INPUT vparam = vec3(0, 1, 0.05), const float tau = 4, const bool double_sided = true) {
@@ -791,7 +792,7 @@ public:
     }
     // 绘制正3棱锥，a为边长
     Model& makePyramid(const float a = 1.f) {
-        const int s = p.size();
+        const size_t s = p.size();
         addPoint(a / 2, 0, a / 3.4641);
         addPoint(0, 0, -a / 1.732);
         addPoint(-a / 2, 0, a / 3.4641);
@@ -828,9 +829,9 @@ public:
 class World {
 public:
     std::vector<Model> m;
-    bool pointCloudMode = false;
-    bool usePointNormal = false;
-    bool exportObjAsDifferentObject = true;
+    bool pointCloudMode = false;             // 点云模式
+    bool usePointNormal = false;             // 使用点法线
+    bool exportObjAsDifferentObject = true;  // 导出obj时，不合并模型。
     void refine() {
         for (auto& mo : m) {
             mo.refine();
@@ -847,17 +848,21 @@ public:
             }
         }
     }
+    // 把模型剪切进世界
     void moveModel(Model& mi) {
         m.emplace_back(std::move(mi));
     }
+    // 把模型复制进世界
     void copyModel(const Model mi) {
         m.emplace_back(mi);
     }
+    // 显示世界各个模型的点和三角面数
     void showWorldInfo() {
         for (auto& mo : m) {
             mo.showModelInfo();
         }
     }
+    // 保存世界到obj文件
     void saveWorld2Obj(const std::string savePath) const {
         std::ofstream objOut(savePath, std::ios::ate);
         if (!objOut.is_open()) {
@@ -879,7 +884,7 @@ public:
                 objOut << "vn " << f.nor[0] << " " << f.nor[1] << " " << f.nor[2] << "\n";
             }
             // 带法向量的面
-            for (int i = 0; i < mo.f.size(); ++i) {
+            for (size_t i = 0; i < mo.f.size(); ++i) {
                 const auto& fa = mo.f[i];
                 const auto& fi = fa.p;
                 const auto& fn = fa.nor;
@@ -893,13 +898,14 @@ public:
         objOut.close();
         std::cout << "Finish!" << std::endl;
     }
+    // 提供适合OpenGL渲染的顶点
     std::vector<float> ovDisplay() const {
         std::vector<float> ov;
-        auto ovAddPoint = [&](const int a, const int mIndex, const vec3& normal) {
+        auto ovAddPoint = [&](const size_t a, const size_t mIndex, const vec3& normal) {
             const auto seq = m[mIndex].p[a].sequence(normal);
             ov.insert(ov.end(), seq.begin(), seq.end());
         };
-        auto displayTriFace = [&](const int a, const int b, const int c, const int mIndex, const vec3& normal) {
+        auto displayTriFace = [&](const size_t a, const size_t b, const size_t c, const size_t mIndex, const vec3& normal) {
             ovAddPoint(a, mIndex, normal);
             ovAddPoint(b, mIndex, normal);
             ovAddPoint(c, mIndex, normal);
@@ -912,7 +918,7 @@ public:
                 }
             }
         } else {
-            for (int i = 0; i < m.size(); ++i) {
+            for (size_t i = 0; i < m.size(); ++i) {
                 for (const auto& f : m[i].f) {
                     const auto& fi = f.p;
                     const vec3& normal = usePointNormal ? NO_NORMAL : f.nor;
@@ -977,10 +983,10 @@ public:
                 }
             }
             // 带法向量的面
-            for (int i = 0; i < mo.f.size(); ++i) {
+            for (size_t i = 0; i < mo.f.size(); ++i) {
                 const auto& f = mo.f[i];
                 const auto& fi = f.p;
-                const int fn = fIndex[i];
+                const size_t fn = fIndex[i];
                 if (fi[2] == fi[3])
                     objOut << "f " << fi[0] + 1 << "//" << fn + 1 << " " << fi[1] + 1 << "//" << fn + 1 << " " << fi[2] + 1 << "//" << fn + 1 << "\n";
                 else

@@ -1,11 +1,10 @@
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-
 #include <iostream>
 
 #include "Generator.h"
 #include "camera.h"
 #include "shader.h"
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
