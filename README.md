@@ -15,7 +15,7 @@
 我自己尝试在Windows 11下用Visual Studio 2022编译运行成功，在Fedora 38上用g++编译运行成功。g++命令如下：
 
 ```sh
-g++ -std=c++17 -o out ./AbstractModelMaker.cpp ./glad.c ./camera.h ./ABMath.h ./Generator.cpp ./Generator.h -lglfw3 -lGL -lm -lXrandr -lXi -lX11 -lpthread -ldl -lXinerama -lXcursor
+g++ -std=c++17 -o out ./AbstractModelMaker.cpp ./glad.c ./camera.h ./ABMath.h ./Generator.cpp ./Generator.h -lglfw3 -lGL -lm -lXrandr -lXi -lX11 -lpthread -ldl -lXinerama -lXcursor -fopenmp
 ```
 
 如果只需要生成模型而不需要OpenGL显示，可以只使用ABMath.h文件，配置好glm和OpenMP即可。
