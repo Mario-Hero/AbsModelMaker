@@ -107,12 +107,12 @@ public:
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset) {
         if (yoffset > 0) {
-            ballCameraR += 5 * yoffset;
+            ballCameraR += 3 * yoffset;
         } else {
             if (ballCameraR < 10) {
                 ballCameraR += 0.1f * yoffset;
             } else {
-                ballCameraR += 5 * yoffset;
+                ballCameraR += 3 * yoffset;
             }
         }
         updatePosition();

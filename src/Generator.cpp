@@ -107,6 +107,20 @@ void demo6(Model& m) {
     m.showModelInfo();
 }
 
+// 曼德尔球的体积转网格
+void demo7(Model& m) {
+    const size_t RESOLUTION = 700;
+    Volume vol(RESOLUTION, RESOLUTION, RESOLUTION,vec3(2.5, 2.5, 2.5));
+    auto mandelbulbVec = [&](const vec3& p) {
+        return mandelbulb(p.x, p.y, p.z);
+    };
+    std::cout << "making Volume" << std::endl;
+    vol.makeVolume(mandelbulbVec);
+    std::cout << "finish making" << std::endl;
+    m = vol.toMeshParallel();
+    std::cout << "finish meshing" << std::endl;
+    
+}
 Generator::Generator() {}
 
 void Generator::init() {
@@ -115,11 +129,11 @@ void Generator::init() {
     // 从下面的demo中挑一个执行即可
     // demo1(bal);
     // demo3(bal);
-    demo2(world);
+    // demo2(world);
     // demo4(bal);
     // demo5(bal);
     // demo6(bal);
-
+    demo7(bal);
     // 下面的代码不需要调整
     world.moveModel(bal);
     ov = world.ovDisplay();

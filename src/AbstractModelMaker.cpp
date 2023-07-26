@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "Generator.h"
 #include "camera.h"
 #include "shader.h"
