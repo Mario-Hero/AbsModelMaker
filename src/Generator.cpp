@@ -109,7 +109,7 @@ void demo6(Model& m) {
 
 // 曼德尔球的体积转网格
 void demo7(Model& m) {
-    const size_t RESOLUTION = 700;
+    const size_t RESOLUTION = 200;
     Volume vol(RESOLUTION, RESOLUTION, RESOLUTION,vec3(2.5, 2.5, 2.5));
     auto mandelbulbVec = [&](const vec3& p) {
         return mandelbulb(p.x, p.y, p.z);
