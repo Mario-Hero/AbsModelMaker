@@ -38,7 +38,7 @@ g++ -std=c++17 -o out ./AbstractModelMaker.cpp ./glad.c ./camera.h ./ABMath.h ./
 
 使用Marching Cubes 方法，用OpenMP并行地把体积转换成三角网格。
 
-Marching Cubes 源码来自 [Matt's Webcorner]([Matt's Webcorner - Marching Cubes (stanford.edu)](https://graphics.stanford.edu/~mdfisher/MarchingCubes.html))
+Marching Cubes 源码来自 [Matt's Webcorner](https://graphics.stanford.edu/~mdfisher/MarchingCubes.html)
 
 # 一些示例
 
