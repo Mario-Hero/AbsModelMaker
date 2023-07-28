@@ -1,5 +1,6 @@
 #pragma once
 #include "MarchingCubes.cpp"
+#include <omp.h>
 #include <algorithm>
 #include <cmath>
 #include <array>
@@ -34,8 +35,8 @@ namespace ABMath {
         vec3 pos;  // 位置 Position
         vec3 nor;  // 法线 Normal, don't need to normalize
         vec3 col;  // 顶点色 Vertex Color
-        std::vector<float> sequence(const vec3& normal = NO_NORMAL) const {
-            return normal == NO_NORMAL ? std::vector<float>({ pos[0], pos[1], pos[2], nor[0], nor[1], nor[2], col[0], col[1], col[2] }) : std::vector<float>({ pos[0], pos[1], pos[2], normal[0], normal[1], normal[2], col[0], col[1], col[2] });
+        std::array<float, 9> sequence(const vec3& normal = NO_NORMAL) const {
+            return normal == NO_NORMAL ? std::array<float,9>({ pos[0], pos[1], pos[2], nor[0], nor[1], nor[2], col[0], col[1], col[2] }) : std::array<float, 9>({ pos[0], pos[1], pos[2], normal[0], normal[1], normal[2], col[0], col[1], col[2] });
         }
         Point(Point&& p) noexcept :pos(p.pos), nor(p.nor), col(p.col) {};
         Point(const Point& p):pos(p.pos), nor(p.nor), col(p.col) {};
@@ -45,6 +46,7 @@ namespace ABMath {
             col = p.col;
             return *this;
         };
+        Point(const vec3& aPos, const vec3& aNor, const vec3& aCol) :pos(aPos), nor(aNor), col(aCol) {}
         Point(std::initializer_list<vec3> list) :pos(*list.begin()), nor(*(list.begin()+1)), col(*(list.begin() + 2)) {}
     };
 
@@ -69,6 +71,13 @@ namespace ABMath {
     using FaceVec = std::vector<vec3>;      // 带有点坐标的面
 
     struct hash_vec3 {
+        static size_t hash(const vec3& p) {
+            return std::hash<float>()(p[0]) + std::hash<float>()(p[1]) + std::hash<float>()(p[2]);
+        }
+        //! True if strings are equal
+        static bool equal(const vec3& x, const vec3& y) {
+            return x == y;
+        }
         size_t operator()(const vec3& p) const {
             return std::hash<float>()(p[0]) + std::hash<float>()(p[1]) + std::hash<float>()(p[2]);
         }
@@ -306,39 +315,51 @@ namespace ABMath {
             const vec3 vb = p[b].pos - p[m].pos;
             p[m].nor += glm::normalize(glm::cross(vb, va));
         }
+        Model& updateIsDefaultColor(const vec3& col) {
+            if (col != DEFAULT_COLOR) default_color = false;
+            return *this;
+        }
     public:
         std::string name = "";
         std::vector<Point> p;
         std::vector<Face> f;
+        bool default_color = true;
         Model(const std::string inputName = MODEL_NAME) : name(inputName) {};
-        Model(const Model& mo) :p(mo.p), f(mo.f), name(mo.name) {}
-        Model(Model&& mo) noexcept :p(mo.p),f(mo.f),name(mo.name) {}
+        Model(const Model& mo) :p(mo.p), f(mo.f), name(mo.name), default_color(mo.default_color){}
+        Model(Model&& mo) noexcept :p(mo.p),f(mo.f),name(mo.name), default_color(mo.default_color){}
         void operator=(const Model& mo) {
             p = mo.p;
             f = mo.f;
             name = mo.name;
+            default_color = mo.default_color;
         }
-        void addPoint(const vec3 aPos, const vec3 aNormal = NO_NORMAL, const vec3 aColor = DEFAULT_COLOR) {
-            p.emplace_back(Point{ aPos, aNormal, aColor });
+        Model& addPoint(const vec3& aPos, const vec3& aNormal = NO_NORMAL, const vec3& aColor = DEFAULT_COLOR) {
+            p.emplace_back(Point(aPos, aNormal, aColor));
+            return *this;
         }
-        void addPoint(const float x, const float y, const float z) {
-            p.emplace_back(Point{ vec3(x, y, z), NO_NORMAL, DEFAULT_COLOR });
+        Model& addPoint(const float x, const float y, const float z) {
+            p.emplace_back(Point(vec3(x, y, z), NO_NORMAL, DEFAULT_COLOR));
+            return *this;
         }
-        void addFace(const Face& ftemp) {
+        Model& addFace(const Face& ftemp) {
             f.emplace_back(ftemp);
+            return *this;
         }
-        void addFace(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
+        Model& addFace(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
             f.emplace_back(Face({ a, b, c, d }, normal));
+            return *this;
         }
-        void addFaceInvert(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
+        Model& addFaceInvert(const size_t a, const size_t b, const size_t c, const size_t d, const vec3& normal = NO_NORMAL) {
             f.emplace_back(Face({ d, c, b, a }, normal));
+            return *this;
         }
-
-        void addTriFace(const TriFace& ftemp) {
-            f.emplace_back(Face({ ftemp[0], ftemp[1], ftemp[2], ftemp[2] }));
+        Model& addTriFace(const TriFace& ftemp) {
+            f.emplace_back(Face({ ftemp[0], ftemp[1], ftemp[2], ftemp[2] }, NO_NORMAL));
+            return *this;
         }
-        void addTriFace(const size_t a, const size_t b, const size_t c) {
-            f.emplace_back(Face({ a, b, c, c }));
+        Model& addTriFace(const size_t a, const size_t b, const size_t c) {
+            f.emplace_back(Face({ a, b, c, c }, NO_NORMAL));
+            return *this;
         }
         // 锁住模型 lock the mutex of this model. Remember to unlock
         inline Model& lock() {
@@ -353,6 +374,10 @@ namespace ABMath {
         Model& clear() {
             p.clear();
             f.clear();
+            return *this;
+        }
+        Model& mergeFaceOnly(Model& mod) {
+            f.insert(f.end(), mod.f.begin(), mod.f.end());
             return *this;
         }
         Model& merge(Model& mod) {
@@ -391,7 +416,10 @@ namespace ABMath {
         }
         // 重新计算当前模型的法线，逐面计算
         Model& reCalNormalByFace() {
-            for (auto& fi : f) {
+            const long fSize = f.size();
+            #pragma omp parallel for
+            for (long i = 0; i < fSize;++i) {
+                auto& fi = f[i];
                 const size_t a = fi.p[0];
                 const size_t m = fi.p[1];
                 const size_t b = fi.p[2];
@@ -404,8 +432,9 @@ namespace ABMath {
         // 输出模型的点和三角面数量
         Model& showModelInfo() {
             unsigned long triangleFaceNum = 0;
-            for (const auto& fi : f) {
-                triangleFaceNum += fi.p[2] == fi.p[3] ? 1 : 2;
+            #pragma omp parallel for
+            for (long i = 0; i < f.size();++i) {
+                triangleFaceNum += f[i].p[2] == f[i].p[3] ? 1 : 2;
             }
             std::cout << "Model: " << name << std::endl;
             std::cout << "Vertice: " << p.size() << std::endl;
@@ -528,8 +557,9 @@ namespace ABMath {
                 }
                 ++j;
             }
-            for (auto& fv : f) {
-                for (auto& fvp : fv.p) {
+            #pragma omp parallel for
+            for (long i = 0; i < f.size();++i) {
+                for (auto& fvp : f[i].p) {
                     fvp -= minus[fvp];
                 }
             }
@@ -548,6 +578,9 @@ namespace ABMath {
             }
             return *this;
         }
+        // 待添加：删除没用的点
+
+
         // 沿曲线挤出图形
         Model& extrude(std::function<vec3(const float)> line, const std::vector<vec2>& pVec, const float tStart, const float tEnd, const float tDelta, const vec3& Color = DEFAULT_COLOR) {
             const size_t pvStartIndex = p.size();
@@ -625,7 +658,8 @@ namespace ABMath {
             return *this;
         }
         // 绘制平面
-        Model& plane(const vec3& pos = WORLD_ORIGIN, const vec3& axisX = vec3(1, 0, 0), const vec3& axisZ = vec3(0, 0, 1), const float xLen = 1, const float zLen = 1, const size_t divX = 5, const size_t divZ = 5) {
+        Model& plane(const vec3& pos = WORLD_ORIGIN, const vec3& axisX = vec3(1, 0, 0), const vec3& axisZ = vec3(0, 0, 1), const float xLen = 1, const float zLen = 1, const size_t divX = 5, const size_t divZ = 5, const vec3& Color=DEFAULT_COLOR) {
+            updateIsDefaultColor(Color);
             const size_t pvStartIndex = p.size();
             const float zDelta = zLen / float(divZ);
             const float xDelta = xLen / float(divX);
@@ -644,7 +678,8 @@ namespace ABMath {
             return *this;
         }
         // 绘制柱体
-        Model& bar(const std::vector<vec2>& pVec, const vec3& startPoint, const vec3& endPoint, const vec3& Color) {
+        Model& bar(const std::vector<vec2>& pVec, const vec3& startPoint, const vec3& endPoint, const vec3& Color=DEFAULT_COLOR) {
+            updateIsDefaultColor(Color);
             const size_t pvStartIndex = p.size();
             const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
             const vec3 dir = glm::normalize(endPoint - startPoint);
@@ -684,6 +719,8 @@ namespace ABMath {
         }
         // 两端颜色不同的柱体，颜色在柱子的中间突变。
         Model& barChem(const std::vector<vec2>& pVec, const vec3& startPoint, const vec3& endPoint, const vec3& Color1, const vec3& Color2) {
+            updateIsDefaultColor(Color1);
+            updateIsDefaultColor(Color2);
             const size_t pvStartIndex = p.size();
             const std::vector<TriFace> tr = triangulate(pVec, pvStartIndex);
             const vec3 dir = glm::normalize(endPoint - startPoint);
@@ -727,6 +764,7 @@ namespace ABMath {
         // 绘制UV球
         Model& makeUVSphere(const vec3 pos = WORLD_ORIGIN, const float R = 1, const size_t n_slices = 12, const size_t n_stacks = 8, const vec3& Color = DEFAULT_COLOR) {
             const size_t s = p.size();
+            updateIsDefaultColor(Color);
             // add top vertex
             const vec3 v0 = vec3(0, R, 0) + pos;
             addPoint(v0, vec3(0, 1, 0), Color);
@@ -773,6 +811,7 @@ namespace ABMath {
         Model& makeCube(const vec3 pos = WORLD_ORIGIN, const float len = 1, const vec3& Color = DEFAULT_COLOR) {
             const float r = len / 2.f;
             const size_t s = p.size();
+            updateIsDefaultColor(Color);
             // 正面4个点，右上角开始，逆时针旋转
             addPoint(pos + vec3(r, r, r), NO_NORMAL, Color);
             addPoint(pos + vec3(-r, r, r), NO_NORMAL, Color);
@@ -861,12 +900,13 @@ namespace ABMath {
         }
         // 移动模型
         Model& movePos(const vec3& pos) {
-            for (auto& pp : p) {
-                pp.pos += pos;
+            #pragma omp parallel for
+            for (long i = 0; i < p.size();++i) {
+                p[i].pos += pos;
             }
             return *this;
         }
-    };
+};
 
     class World {
     public:
@@ -920,8 +960,14 @@ namespace ABMath {
             size_t pLoc = 1;
             for (const auto& mo : m) {
                 objOut << (exportObjAsDifferentObject ? "o " : "g ") << mo.name << "\n";
-                for (const Point& pi : mo.p) {
-                    objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                if (mo.default_color) {
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << "\n";
+                    }
+                }else{
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                    }
                 }
                 for (const auto& f : mo.f) {
                     objOut << "vn " << f.nor[0] << " " << f.nor[1] << " " << f.nor[2] << "\n";
@@ -941,6 +987,7 @@ namespace ABMath {
             objOut.close();
             std::cout << "Finish!" << std::endl;
         }
+        
         // 提供适合OpenGL渲染的顶点
         std::vector<float> ovDisplay() const {
             std::vector<float> ov;
@@ -986,8 +1033,15 @@ namespace ABMath {
             }
             for (const auto& mo : m) {
                 objOut << (exportObjAsDifferentObject ? "o " : "g ") << mo.name << "\n";
-                for (const Point& pi : mo.p) {
-                    objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                if (mo.default_color) {
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << "\n";
+                    }
+                }
+                else {
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                    }
                 }
                 for (const auto& f : mo.f) {
                     const auto& fi = f.p;
@@ -1011,8 +1065,15 @@ namespace ABMath {
             }
             for (auto& mo : m) {
                 objOut << (exportObjAsDifferentObject ? "o " : "g ") << mo.name << "\n";
-                for (const Point& pi : mo.p) {
-                    objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                if (mo.default_color) {
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << "\n";
+                    }
+                }
+                else {
+                    for (const Point& pi : mo.p) {
+                        objOut << "v " << pi.pos[0] << " " << pi.pos[1] << " " << pi.pos[2] << " " << pi.col[0] << " " << pi.col[1] << " " << pi.col[2] << "\n";
+                    }
                 }
                 std::vector<vec3> mv;
                 std::vector<size_t> fIndex;
@@ -1042,6 +1103,8 @@ namespace ABMath {
             std::cout << "Finish!" << std::endl;
         }
     };
+
+
     class Volume {
         using VolumeVector = std::vector<std::vector<std::vector<bool>>>;
     private:
@@ -1053,7 +1116,8 @@ namespace ABMath {
         {
             const auto p1 = getGridPoint(i, j, k, index1);
             const auto p2 = getGridPoint(i, j, k, index2);
-            return Vec3Interp(getPointPosition(p1), getPointPosition(p2), bool2Float(getVal(p1)), bool2Float(getVal(p2)));
+            //return Vec3Interp(getPointPosition(p1), getPointPosition(p2), bool2Float(getVal(p1)), bool2Float(getVal(p2)));
+            return (getPointPosition(p2) + getPointPosition(p1))*0.5f;
         }
         inline static float bool2Float(const bool b) {
             return b ? 1.f : 0.f;
@@ -1064,10 +1128,9 @@ namespace ABMath {
         std::array<size_t, 3> resolution;
         vec3 scaleLen2Size;
         vec3 center;
-        Volume(const size_t xLen = 50, const size_t yLen = 50, const size_t zLen = 50, const vec3 actualSizeInput = vec3(1.f, 1.f, 1.f), const vec3 centerPos=vec3(0,0,0)) :actualSize(actualSizeInput),center(centerPos) {
-            v = VolumeVector(xLen, std::vector<std::vector<bool>>(yLen, std::vector<bool>(zLen, false)));
-            resolution = { xLen, yLen, zLen };
-            scaleLen2Size = { actualSizeInput[0] / float(xLen), actualSizeInput[1] / float(yLen), actualSizeInput[2] / float(zLen) };
+        Volume(const std::array<size_t, 3> resolutionInput, const vec3 actualSizeInput = vec3(1.f, 1.f, 1.f), const vec3 centerPos=vec3(0,0,0)) :resolution(resolutionInput),actualSize(actualSizeInput),center(centerPos) {
+            v = VolumeVector(resolutionInput[0], std::vector<std::vector<bool>>(resolutionInput[1], std::vector<bool>(resolutionInput[2], false)));
+            scaleLen2Size = { actualSizeInput[0] / float(resolutionInput[0]), actualSizeInput[1] / float(resolutionInput[1]), actualSizeInput[2] / float(resolutionInput[2])};
         }
         inline bool getVal(std::array<size_t, 3> pos) const {
             return getVal(pos[0], pos[1], pos[2]);
@@ -1080,11 +1143,19 @@ namespace ABMath {
             return v[i][j][k];
         }
         inline vec3 getPointPosition(const size_t i, const size_t j, const size_t k) const {
+            return vec3(scaleLen2Size[0] * float(i) - actualSize[0] * 0.5f + center[0],
+                        scaleLen2Size[1] * float(j) - actualSize[1] * 0.5f + center[1],
+                        scaleLen2Size[2] * float(k) - actualSize[2] * 0.5f + center[2]);
+        }
+        inline vec3 getPointPosition(const float i, const float j, const float k) const {
             return vec3(scaleLen2Size[0] * i - actualSize[0] * 0.5f + center[0],
-                scaleLen2Size[1] * j - actualSize[1] * 0.5f + center[1],
-                scaleLen2Size[2] * k - actualSize[2] * 0.5f + center[2]);
+                        scaleLen2Size[1] * j - actualSize[1] * 0.5f + center[1],
+                        scaleLen2Size[2] * k - actualSize[2] * 0.5f + center[2]);
         }
         inline vec3 getPointPosition(const std::array<size_t, 3>& pos) const {
+            return getPointPosition(pos[0], pos[1], pos[2]);
+        }
+        inline vec3 getPointPosition(const vec3 pos) const {
             return getPointPosition(pos[0], pos[1], pos[2]);
         }
         std::array<size_t, 3> getGridPoint(const size_t i, const size_t j, const size_t k, const uint8_t index) const {
@@ -1102,7 +1173,7 @@ namespace ABMath {
         }
         uint8_t getGrid(const size_t i, const size_t j, const size_t k) const {
             uint8_t CubeIndex = 0;
-            for (size_t index = 0; index < 8; ++index) {
+            for (uint8_t index = 0; index < 8; ++index) {
                 if (getVal(getGridPoint(i, j, k, index))) CubeIndex |= (1 << index);
             }
             return CubeIndex;
@@ -1110,12 +1181,82 @@ namespace ABMath {
         void makeVolume(std::function<bool(vec3)> fun) {
             #pragma omp parallel for
             for (long i = 0; i < resolution[0]; ++i) {
-                for (long j = 0; j < resolution[1]; ++j) {
-                    for (long k = 0; k < resolution[2]; ++k) {
+                for (size_t j = 0; j < resolution[1]; ++j) {
+                    for (size_t k = 0; k < resolution[2]; ++k) {
                         v[i][j][k] = fun(getPointPosition(i, j, k));
                     }
                 }
             }
+        }
+        // 体积转网格。导出结果不包含重复点，但是速度较慢。
+        Model toMeshParallelNoDuplicatePoints() const {
+            Model ori("Volume");
+            size_t vertexIndex = 0;
+            std::vector<std::vector<std::vector<long>>> points =
+                std::vector<std::vector<std::vector<long>>>(resolution[0] * 2,
+                    std::vector<std::vector<long>>(resolution[1] * 2,
+                        std::vector<long>(resolution[2] * 2, -1)));
+            auto getP = [&](const vec3& v) -> long& {
+                return points[v[0] * 2][v[1] * 2][v[2] * 2];
+            };
+            auto gridVertexIndex = [](const size_t i, const size_t j, const size_t k, const int8_t index) -> vec3 {
+                switch (index) {
+                case 0:return vec3(i + 0.5, j, k);
+                case 1:return vec3(i + 1, j + 0.5, k);
+                case 2:return vec3(i + 0.5, j + 1, k);
+                case 3:return vec3(i, j + 0.5, k);
+                case 4:return vec3(i + 0.5, j, k - 1);
+                case 5:return vec3(i + 1, j + 0.5, k - 1);
+                case 6:return vec3(i + 0.5, j + 1, k - 1);
+                case 7:return vec3(i, j + 0.5, k - 1);
+                case 8:return vec3(i, j, k - 0.5);
+                case 9:return vec3(i + 1, j, k - 0.5);
+                case 10:return vec3(i + 1, j + 1, k - 0.5);
+                case 11:return vec3(i, j + 1, k - 0.5);
+                }
+            };
+            std::mutex mapLock;
+            #pragma omp parallel for
+            for (long i = 0; i < resolution[0] - 1; ++i) {
+                Model m;
+                for (size_t j = 0; j < resolution[1] - 1; ++j) {
+                    for (size_t k = 1; k < resolution[2] ; ++k) {
+                        const auto CubeIndex = getGrid(i, j, k);
+                        if (edgeTable[CubeIndex] == 0)
+                            continue;
+                        std::array<long, 12> LocalRemap{};
+                        LocalRemap.fill(-1);
+                        for (size_t ki = 0; triTable[CubeIndex][ki] != -1; ++ki){
+                            const auto tr = triTable[CubeIndex][ki];
+                            if (LocalRemap[tr] == -1)
+                            {
+                                const auto pTr = gridVertexIndex(i, j, k, tr);
+                                auto& pLoc = getP(pTr);
+                                if (pLoc == -1) {
+                                    mapLock.lock();
+                                    pLoc = vertexIndex;
+                                    LocalRemap[tr] = vertexIndex;
+                                    ++vertexIndex;
+                                    ori.addPoint(getPointPosition(pTr));
+                                    mapLock.unlock();
+                                }
+                                else {
+                                    LocalRemap[tr] = pLoc;
+                                }
+                                
+                            }
+                        }
+                        for (size_t i = 0; triTable[CubeIndex][i] != -1; i += 3) {
+                            m.addTriFace(LocalRemap[triTable[CubeIndex][i]],
+                                                  LocalRemap[triTable[CubeIndex][i + 1]],
+                                                  LocalRemap[triTable[CubeIndex][i + 2]]);
+                        }
+                    }
+                }
+                ori.lock().mergeFaceOnly(m).unlock();
+            }
+            ori.reCalNormalByFace();
+            return ori;
         }
         Model toMesh() const {
             Model m;
@@ -1189,6 +1330,7 @@ namespace ABMath {
             m.reCalNormalByFace();
             return m;
         }
+        // 体积转网格。导出结果包含大量重复点，但是速度快。
         Model toMeshParallel() const {
             Model ori;
             #pragma omp parallel for
@@ -1203,41 +1345,29 @@ namespace ABMath {
                             continue;
                         //Find the vertices where the surface intersects the cube
                         if (edgeTable[CubeIndex] & 1)
-                            VertexList[0] =
-                            VertexInterp(i, j, k, 0, 1);
+                            VertexList[0] = getPointPosition(i + 0.5, j, k);
                         if (edgeTable[CubeIndex] & 2)
-                            VertexList[1] =
-                            VertexInterp(i, j, k, 1, 2);
+                            VertexList[1] = getPointPosition(i + 1, j + 0.5, k);
                         if (edgeTable[CubeIndex] & 4)
-                            VertexList[2] =
-                            VertexInterp(i, j, k, 2, 3);
+                            VertexList[2] = getPointPosition(i + 0.5, j + 1, k);
                         if (edgeTable[CubeIndex] & 8)
-                            VertexList[3] =
-                            VertexInterp(i, j, k, 3, 0);
+                            VertexList[3] = getPointPosition(i, j + 0.5, k);
                         if (edgeTable[CubeIndex] & 16)
-                            VertexList[4] =
-                            VertexInterp(i, j, k, 4, 5);
+                            VertexList[4] = getPointPosition(i + 0.5, j, k - 1);
                         if (edgeTable[CubeIndex] & 32)
-                            VertexList[5] =
-                            VertexInterp(i, j, k, 5, 6);
+                            VertexList[5] = getPointPosition(i + 1, j + 0.5, k - 1);
                         if (edgeTable[CubeIndex] & 64)
-                            VertexList[6] =
-                            VertexInterp(i, j, k, 6, 7);
+                            VertexList[6] = getPointPosition(i + 0.5, j + 1, k - 1);
                         if (edgeTable[CubeIndex] & 128)
-                            VertexList[7] =
-                            VertexInterp(i, j, k, 7, 4);
+                            VertexList[7] = getPointPosition(i, j + 0.5, k - 1);
                         if (edgeTable[CubeIndex] & 256)
-                            VertexList[8] =
-                            VertexInterp(i, j, k, 0, 4);
+                            VertexList[8] = getPointPosition(i, j, k - 0.5);
                         if (edgeTable[CubeIndex] & 512)
-                            VertexList[9] =
-                            VertexInterp(i, j, k, 1, 5);
+                            VertexList[9] = getPointPosition(i + 1, j, k - 0.5);
                         if (edgeTable[CubeIndex] & 1024)
-                            VertexList[10] =
-                            VertexInterp(i, j, k, 2, 6);
+                            VertexList[10] = getPointPosition(i + 1, j + 1, k - 0.5);
                         if (edgeTable[CubeIndex] & 2048)
-                            VertexList[11] =
-                            VertexInterp(i, j, k, 3, 7);
+                            VertexList[11] = getPointPosition(i, j + 1, k - 0.5);
                         std::array<vec3, 12> NewVertexList{};
                         std::array<int, 12> LocalRemap{};
                         LocalRemap.fill(-1);

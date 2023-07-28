@@ -34,7 +34,7 @@ g++ -std=c++17 -o out ./AbstractModelMaker.cpp ./glad.c ./camera.h ./ABMath.h ./
 
 ### 删除重复面 Model::deleteDuplicateFaces()
 
-### 体积转网格（并行） Volume::toMeshParallel()
+### 体积转网格（并行） Volume::toMeshParallel()或 Volume::toMeshParallelNoDuplicatePoints()
 
 使用Marching Cubes 方法，用OpenMP并行地把体积转换成三角网格。
 

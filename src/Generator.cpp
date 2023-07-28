@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <random>
-
+#include <time.h>
 #include "ABMath.h"
 
 // 螺旋的参数方程
@@ -109,15 +109,20 @@ void demo6(Model& m) {
 
 // 曼德尔球的体积转网格
 void demo7(Model& m) {
-    const size_t RESOLUTION = 200;
-    Volume vol(RESOLUTION, RESOLUTION, RESOLUTION,vec3(2.5, 2.5, 2.5));
+    const size_t RESOLUTION = 100;
+    Volume vol({ RESOLUTION, RESOLUTION, RESOLUTION }, vec3(2.5, 2.5, 2.5));
     auto mandelbulbVec = [&](const vec3& p) {
         return mandelbulb(p.x, p.y, p.z);
     };
     std::cout << "making Volume" << std::endl;
     vol.makeVolume(mandelbulbVec);
     std::cout << "finish making" << std::endl;
-    m = vol.toMeshParallel();
+    clock_t start, end;
+    start = clock();
+    m = vol.toMeshParallelNoDuplicatePoints();  //慢，但删除了所有重复顶点
+    //m = vol.toMeshParallel();  //更快，但会保留很多重复的顶点
+    end = clock();
+    std::cout << "time = " << double(end - start) / CLOCKS_PER_SEC << "s" << std::endl;
     std::cout << "finish meshing" << std::endl;
     
 }
@@ -125,7 +130,6 @@ Generator::Generator() {}
 
 void Generator::init() {
     auto bal = Model("test");
-
     // 从下面的demo中挑一个执行即可
     // demo1(bal);
     // demo3(bal);
