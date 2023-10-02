@@ -2,7 +2,7 @@
 
 上次更新：2023/07/26
 
-分形是很美丽也很有趣的东西，我打算通过C++代码生成三维分形模型，然后导出到obj格式，用3d软件读取并渲染，所以我设计了这个程序，帮助我构建和保存模型，还能通过OpenGL预览模型。
+分形是很美丽也很有趣的东西，我打算通过C++代码生成三维分形模型，然后导出到obj格式，用3d软件读取并渲染，所以我设计了这个程序，帮助我构建和保存模型，还能通过OpenGL预览模型。[这里是一些导出模型后用Arnold渲染的图](https://mariocanfly.cgsociety.org/fractals)。
 
 <img src="./img/Screenshot 2023-07-13 150551.jpg" alt="Screenshot 2023-07-13 150551" width="30%"/><img src="./img/Screenshot 2023-07-13 151149.jpg" alt="Screenshot 2023-07-13 151149" width="30%"/><img src="./img/Screenshot 2023-07-26 182648.jpg" alt="Screenshot 2023-07-26 182648" width="30%"/>
 
